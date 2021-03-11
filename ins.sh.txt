@@ -1,0 +1,197 @@
+#!/bin/bash
+
+# Function 1 **********************************************************************************
+func_centos () {
+
+#if [ $OS == CentOS ]
+#then
+#echo "Installation is in progress...."
+
+echo "-----------------------------------------------------------------------------------------------"
+sudo yum install -y yum-utils
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo yum install docker-ce -y
+
+echo "-----------------------------------------------------------------------------------------------"
+echo "Installaiton Docker-compose"
+sudo curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+sleep 3
+
+echo "-----------------------------------------------------------------------------------------------"
+echo "Settin up local user to access Docker - Adding docker group"
+# Docker group check
+
+        Group=docker
+        ID=$(whoami)
+        GI2=$(cat /etc/group  | grep -iw docker)
+        if [ $? -ne 0  ]
+        then
+          echo "Group $Group does not exists"
+          sudo groupadd $Group
+          sudo usermod -aG $Group $ID
+        else
+          sudo usermod -aG $Group $ID
+        fi
+
+
+echo "-----------------------------------------------------------------------------------------------"
+echo "Restaring docker service"
+sudo systemctl status docker
+sudo systemctl enable docker
+sudo systemctl restart docker
+
+echo "---------------------------------------------------------------------------------------------"
+echo
+echo "Verify that Docker Engine is installed correctly"
+sudo docker run hello-world
+sleep 3
+
+echo "---------------------------------------------------------------------------------------------"
+echo "Installed : $(docker -v)"
+echo "Installed : $(docker-compose -v)"
+
+echo "---------------------------------------------------------------------------------------------"
+echo "Download image and create Jenkins container"
+docker pull jenkins/jenkins
+
+#else
+#echo "This is not CentOS. Aborting...."
+#exit
+#fi
+}
+
+# Function 2 *********************************************************************************************
+#function UBUNTUOS {
+func_ubuntuos () {
+
+#if [ $OS = "Ubuntu" ]
+#then
+
+echo
+echo "-------------------------------------- 1. SET UP THE REPOSITORY"
+sudo apt-get update
+
+sudo apt-get install \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg-agent \
+    software-properties-common -y
+
+echo
+echo "-------------------------------------- UNINSTALL OLD VERSION Docker Packages"
+sudo apt-get remove docker-ce docker-ce-cli containerd.io docker.io -y
+#sudo mv /var/lib/docker /var/lib/docker-`date +%-F`
+#sudo rm -rf /var/lib/docker
+
+echo
+
+echo "-------------------------------------------2. Add Docker’s official GPG key "
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+echo
+
+echo "-------------------------------------------3. set up the stable repository. test repository"
+sudo add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+
+
+# INSTALL DOCKER ENGINE
+echo "-------------------------------------------4. INSTALL DOCKER ENGINE"
+echo
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io -y
+sleep 5
+
+echo
+echo "-------------------------------------------5. INSTALLING Docker-compose"
+# https://docs.docker.com/compose/install/
+sudo curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+#sudo curl -L "https://github.com/docker/compose/releases/download/1.28.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+sudo chmod +x /usr/local/bin/docker-compose
+sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+sleep 5
+
+echo
+echo "---------------------------------------------------------------------------------------------"
+echo
+echo "Verify that Docker Engine is installed correctly - Download Hello World Image...."
+sudo docker run hello-world
+sleep 5
+
+echo
+echo "--------------------------------------- SETTING UP LOCAL USER TO ACCESS Docker DAEMON"
+# Docker group check
+
+        Group=docker
+        ID=$(whoami)
+        GI2=$(cat /etc/group | grep -iw $Group)
+        if [ $? -ne 0  ]
+        then
+          echo "Group $Group does not exists"
+          sudo groupadd $Group
+          sudo usermod -aG $Group $ID
+        else
+          sudo usermod -aG $Group $ID
+        fi
+
+
+sleep 3
+sudo chmod 666 /var/run/docker.sock
+
+echo
+echo "------------------------------------------------------------- RESTARTING DOCKER SERVICES......."
+sudo systemctl enable docker
+echo
+echo "-----------------------------------------------------------------------------------------------"
+sudo systemctl restart docker
+echo
+echo "-----------------------------------------------------------------------------------------------"
+echo "Download image and create Jenkins container"
+##sudo docker pull jenkins/jenkins
+
+echo
+echo "-----------------------------------------------------------------------------------------------"
+sleep 3
+echo "Installed : $(docker -v)"
+echo "Installed : $(docker-compose -v)"
+
+echo
+echo "------------------------------------------------------"
+echo "Logout and Relogin to docker works proper in sudo user"
+echo "------------------------------------------------------"
+
+#else
+#echo
+#echo "************************** This is not Ubuntu OS. Aborting.... ********************************"
+#exit
+#fi
+}
+
+# Script execution based on OS version
+
+OSCHK=`uname`
+if [ "$OSCHK" = "Linux" ]
+then
+OSV=$(cat /etc/os-release | grep NAME | head -1 | cut -d"=" -f2 | sed 's/"//g' | cut -d" " -f1)
+        if [ "$OSV" = "CentOs" ]
+        then
+        func_centos
+        echo $OSV "Statement 1"
+        elif [ "$OSV" = "Ubuntu" ]
+        then
+        echo $OSV
+        func_ubuntuos
+        echo $OSV "statement 2"
+        elif [ "$OSV" = "RHEL" ]
+        then
+        echo $OSV "func_rhel"
+        fi
+
+else
+echo "This is no Linux OS. Installation Aborting..."
+fi
+exit
